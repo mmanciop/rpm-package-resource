@@ -1,0 +1,31 @@
+---
+
+resource_types:
+
+- name: rpm-package
+  type: registry-image
+  source:
+    repository: mmanciop/rpm-package-resource
+    tag: latest
+
+resources:
+
+# Fetches the latest Instana dynamic agent for x86_64
+- name: instana-agent-dynamic-rpm-x86_64
+  type: rpm-package
+  source:
+    repository:
+      url: https://packages.instana.io/agent/generic/x86_64
+      key: https://packages.instana.io/Instana.gpg
+      username: _
+      password: ((instana.download_key)) # Replace this
+      gpg_check: false
+    package: instana-agent-dynamic
+    architecture: x86_64
+
+jobs:
+
+  - name: fetch-latest-instana-agent-dynamic-x86_64
+    plan:
+      - get: instana-agent-dynamic-rpm-x86_64
+        trigger: true

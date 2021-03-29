@@ -1,0 +1,106 @@
+#!/bin/bash
+
+###   Copyright 2021 Michele Mancioppi
+###
+###
+###   Licensed under the Apache License, Version 2.0 (the "License");
+###   you may not use this file except in compliance with the License.
+###   You may obtain a copy of the License at
+###
+###       http://www.apache.org/licenses/LICENSE-2.0
+###
+###   Unless required by applicable law or agreed to in writing, software
+###   distributed under the License is distributed on an "AS IS" BASIS,
+###   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+###   See the License for the specific language governing permissions and
+###   limitations under the License.
+
+set -e
+set -u
+set -o pipefail
+
+exec 3>&1 # make stdout available as fd 3 for the result
+exec 1>&2 # redirect all output to stderr for logging
+
+payload=$(mktemp "input.XXXXXX")
+
+cat > "${payload}" <&0
+
+target_directory="${1}"
+
+if [ -z "${target_directory}" ]; then
+  echo "invalid invocation (missing target directory)"
+  exit 1
+fi
+
+cat "${payload}"
+
+repository_url=$(jq -r '.source.repository.url // ""' < "${payload}")
+repository_username=$(jq -r '.source.repository.username // ""' < "${payload}")
+repository_password=$(jq -r '.source.repository.password // ""' < "${payload}")
+repository_key=$(jq -r '.source.repository.key // ""' < "${payload}")
+repository_gpg_check=$(jq -r '.source.repository.gpg_check' < "${payload}")
+repository_sslverify=$(jq -r '.source.repository.sslverify' < "${payload}")
+package=$(jq -r '.source.package // ""' < "${payload}")
+architecture=$(jq -r '.source.architecture // ""' < "${payload}")
+
+if [ -z "${repository_url}" ]; then
+  echo "invalid payload (missing repository.url)"
+  exit 1
+fi
+
+if [ -z "${package}" ]; then
+  echo "invalid payload (missing package)"
+  exit 1
+fi
+
+if [ -z "${architecture}" ]; then
+  echo "invalid payload (missing architecture)"
+  exit 1
+fi
+
+if [ -z "${repository_sslverify}" ] || [ "${repository_sslverify}" = 'null' ] || [ "${repository_sslverify}" = 'true' ]; then
+  sslverify=1
+elif [ "${repository_sslverify}" = 'false' ]; then
+  echo 'Disabling SSL verification'
+  sslverify=0
+else
+  echo "Unsupported value for 'repository.sslverify': '${repository_sslverify}'; valid values are: true | false"
+  exit 1
+fi
+
+if [ -n "${repository_key}" ]; then
+  curl -sSL "${repository_key}" -o /tmp/repository_key.gpg
+  rpm --import /tmp/repository_key.gpg
+
+  if [ -z "${repository_gpg_check}" ] || [ "${repository_gpg_check}" = 'null' ] || [ "${repository_gpg_check}" = 'true' ]; then
+    gpg_check=1
+  elif [ "${repository_gpg_check}" = 'false' ]; then
+    echo 'Disabling GPG verification'
+    gpg_check=0
+  else
+    echo "Unsupported value for 'repository.gpg_check': '${repository_gpg_check}'; valid values are: true | false"
+    exit 1
+  fi
+fi
+
+readonly repo_file='/etc/yum.repos.d/Resource-Repository.repo'
+
+echo -e "[resource-repository]
+name=Resource
+baseurl=${repository_url}
+enabled=
+gpgcheck=${gpg_check}
+repo_gpgcheck=${gpg_check}
+sslverify=${sslverify}" > "${repo_file}"
+
+[ -n "${repository_key}" ] && echo "gpgkey=${repository_key}" >> "${repo_file}"
+[ -n "${repository_username}" ] && echo "username=${repository_username}" >> "${repo_file}"
+[ -n "${repository_password}" ] && echo "password=${repository_password}" >> "${repo_file}"
+
+readonly version=$(dnf info "${package}" --forcearch "${architecture}" | grep Version | awk '{ print $3 }')
+echo "${version}" > "${target_directory}/version"
+
+dnf install --assumeyes "${package}" --forcearch "${architecture}" --downloadonly --downloaddir="${target_directory}/"
+
+echo "{\"version\":{\"version\":\"${version}\"},\"metadata\":[]}" >&3
