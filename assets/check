@@ -91,4 +91,4 @@ sslverify=${sslverify}" > "${repo_file}"
 [ -n "${repository_username}" ] && echo "username=${repository_username}" >> "${repo_file}"
 [ -n "${repository_password}" ] && echo "password=${repository_password}" >> "${repo_file}"
 
-dnf info "${package}" --forcearch "${architecture}" | grep Version | awk '{ print $3 }' | jq 'tostring | [{version: .}]' >&3
+dnf info "${package}" --forcearch "${architecture}" | grep Version | awk '{ print $3 }' | xargs printf '{"version": "%s"}' >&3
