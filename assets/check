@@ -82,7 +82,6 @@ readonly repo_file='/etc/yum.repos.d/Resource-Repository.repo'
 echo -e "[resource-repository]
 name=Resource
 baseurl=${repository_url}
-enabled=
 gpgcheck=${gpg_check}
 repo_gpgcheck=${gpg_check}
 sslverify=${sslverify}" > "${repo_file}"
