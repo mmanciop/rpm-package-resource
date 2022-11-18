@@ -83,7 +83,6 @@ readonly repo_file='/etc/yum.repos.d/Resource-Repository.repo'
 echo -e "[resource-repository]
 name=Resource
 baseurl=${repository_url}
-enabled=
 gpgcheck=${gpg_check}
 repo_gpgcheck=${gpg_check}
 sslverify=${sslverify}" > "${repo_file}"
@@ -92,4 +91,4 @@ sslverify=${sslverify}" > "${repo_file}"
 [ -n "${repository_username}" ] && echo "username=${repository_username}" >> "${repo_file}"
 [ -n "${repository_password}" ] && echo "password=${repository_password}" >> "${repo_file}"
 
-dnf info "${package}" --forcearch "${architecture}" | grep Version | awk '{ print $3 }' | jq 'tostring | [{version: .}]' >&3
+dnf info "${package}" --forcearch "${architecture}" | grep Version | awk '{ print $3 }' | jq -c -M 'tostring | [{version: .}]' >&3
