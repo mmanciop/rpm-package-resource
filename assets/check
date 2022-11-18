@@ -62,6 +62,7 @@ else
   exit 1
 fi
 
+gpg_check=0
 if [ -n "${repository_key}" ]; then
   curl -sSL "${repository_key}" -o /tmp/repository_key.gpg
   rpm --import /tmp/repository_key.gpg
@@ -70,7 +71,7 @@ if [ -n "${repository_key}" ]; then
     gpg_check=1
   elif [ "${repository_gpg_check}" = 'false' ]; then
     echo 'Disabling GPG verification'
-    gpg_check=0
+    # Nothing else to do here, the default is already no GPG verification when no repository key is provided
   else
     echo "Unsupported value for 'repository.gpg_check': '${repository_gpg_check}'; valid values are: true | false"
     exit 1
