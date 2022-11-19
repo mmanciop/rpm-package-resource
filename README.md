@@ -8,7 +8,7 @@ resource_types:
 - name: rpm-package-resource
   type: registry-image
   source:
-    repository: mmanciop/rpm-version-resource
+    repository: mmanciop/rpm-package-resource
     tag: latest
 
 resources:
